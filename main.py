@@ -16,21 +16,16 @@ from kivy.uix.behaviors import DragBehavior
 
 from functools import partial
 
-IDinator = 0
-
-
 class Node(Widget):
 
-#HEY NOTE: I'm sorry, but event bubbling's a pain, so just don't add children to this widget. It shouldn't have 'em anyways.
+#HEY NOTE: I'm sorry, but event bubbling's a pain, so just don't add children to this widget that need touch. It shouldn't have 'em anyways.
+#ALSO: Always follow a pattern of create -> adjust relevant prev_node/next_node and head/tail -> add_widget, which calls setup, which relies on these
     
     def __init__(self, x, y):   #Pass in x,y of center of node, not corner like usual
         Widget.__init__(self)
         self.MIN_DRAG_DIST = 100
         self.SIZE = 0.05
-
-        global IDinator
-        self.pers_id = IDinator
-        IDinator += 1
+        self.COLOR = Color(1,1,1)
 
         self.prev_node = None;  #Linked List. Should be handled by the layout.
         self.next_node = None;
@@ -47,16 +42,31 @@ class Node(Widget):
         self.unbind(parent=self._setup)         #We don't want to call this on deleting it
         self.size_hint = (self.SIZE, self.SIZE)
         self.conv_pos((x,y))    #set pos_hint
-        with self.canvas:
-            self.bg_rect = Rectangle(pos=self.pos, size=self.size)
+        self.canvas.add(self.COLOR)
+        self.bg_rect = Rectangle(pos=self.pos, size=self.size)
+        self.canvas.add(self.bg_rect)
+        self.head_sign = InstructionGroup()
+        self.head_sign.add(Color(0,0,1))
+        self.head_sign_rect = Rectangle(pos=(self.pos[0]+self.size[0]/4, self.pos[1]+self.size[1]/4), size=(self.size[0]/2, self.size[1]/2))
+        self.head_sign.add(self.head_sign_rect)
+        self.head_sign.add(self.COLOR)
+        self.prev_line = Line(width=1)
+        if self.prev_node is None:
+            self.canvas.add(self.head_sign)
+        else:
+            self.prev_line.points=[self.prev_node.pos[0]+self.prev_node.size[0]/2, self.prev_node.pos[1]+self.prev_node.size[1]/2, x, y]
+            self.canvas.add(self.prev_line)
+
         self.bind(pos=self.redraw, size=self.redraw)
 
     def conv_pos(self, pos):
         self.pos_hint = { 'x' : pos[0] / self.parent.size[0] - self.SIZE/2, 'y': pos[1] / self.parent.size[1] - self.SIZE/2 }
 
     def redraw(self, pointless_variable_because_apparently_self_is_getting_passed_twice_for_some_reason, other_args_question_mark):
-        self.bg_rect.size = self.size
         self.bg_rect.pos = self.pos
+        self.bg_rect.size = self.size
+        self.head_sign_rect.pos = (self.pos[0]+self.size[0]/4, self.pos[1]+self.size[1]/4)
+        self.head_sign_rect.size = (self.size[0]/2, self.size[1]/2)
 
     def on_touch_down(self, touch):
         if self.collide_point(*touch.pos):
@@ -77,13 +87,18 @@ class Node(Widget):
                     self.drag_node.prev_node = self.prev_node
                     if self.prev_node is None:
                         self.parent.head = self.drag_node
+                        self.canvas.remove(self.head_sign)
+                        self.canvas.add(self.prev_line)
                     else:
                         self.prev_node.next_node = self.drag_node
                     self.prev_node = self.drag_node
-
                     self.parent.add_widget(self.drag_node)
             if self.being_dragged and (not self.parent.click_type or self.last_pos[0] is None):
                     self.conv_pos(touch.pos)
+                    if self.prev_node is not None:
+                        self.prev_line.points=[self.prev_node.pos[0]+self.prev_node.size[0]/2, self.prev_node.pos[1]+self.prev_node.size[1]/2, self.pos[0]+self.size[0]/2, self.pos[1]+self.size[1]/2]
+                    if self.next_node is not None:
+                        self.next_node.prev_line.points=[self.pos[0]+self.size[0]/2, self.pos[1]+self.size[1]/2, self.next_node.pos[0]+self.next_node.size[0]/2, self.next_node.pos[1]+self.next_node.size[1]/2]
             return True
         return False
     def on_touch_up(self, touch):
@@ -92,12 +107,18 @@ class Node(Widget):
                 if self.parent.click_type:
                     if self.prev_node is None:
                         self.parent.head = self.next_node
+                        self.next_node.canvas.add(self.next_node.head_sign)
                     else:
                         self.prev_node.next_node = self.next_node
                     if self.next_node is None:
                         self.parent.tail = self.prev_node
                     else:
                         self.next_node.prev_node = self.prev_node
+                        if self.prev_node is None:
+                            self.next_node.canvas.remove(self.next_node.prev_line)
+                        else:
+                            self.next_node.prev_line.points=[self.prev_node.pos[0]+self.prev_node.size[0]/2, self.prev_node.pos[1]+self.prev_node.size[1]/2, self.next_node.pos[0]+self.next_node.size[0]/2, self.next_node.pos[1]+self.next_node.size[1]/2]
+                            #self.next_node.canvas.ask_update()
                     self.parent.remove_widget(self)
                 else:
                     print("select!")
@@ -127,19 +148,8 @@ class MyScreen(FloatLayout):
             self.click_type = not self.click_type
             self.button.text = "Create" if self.click_type else "Select"
             self.dont_check = True
-
-            if self.click_type:
-                self.print_list()
         self.button.bind(on_press=callback)
         self.add_widget(self.button)
-
-    def print_list(self):
-        x = self.head
-        print("  ")
-        while x is not None:
-            print(x.pers_id, "\t\t", x.pos_hint)
-            x = x.next_node
-
 
     def on_touch_down(self, touch):
         if not super(MyScreen, self).on_touch_down(touch):
