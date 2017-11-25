@@ -16,6 +16,9 @@ from kivy.uix.behaviors import DragBehavior
 
 from functools import partial
 
+IDinator = 0
+
+
 class Node(Widget):
 
 #HEY NOTE: I'm sorry, but event bubbling's a pain, so just don't add children to this widget. It shouldn't have 'em anyways.
@@ -24,10 +27,19 @@ class Node(Widget):
         Widget.__init__(self)
         self.MIN_DRAG_DIST = 100
         self.SIZE = 0.05
+
+        global IDinator
+        self.pers_id = IDinator
+        IDinator += 1
+
+        self.prev_node = None;  #Linked List. Should be handled by the layout.
+        self.next_node = None;
+
         self.being_dragged = False      # < Various variables for implementing the drag behavior
-        self.clicked_on = False             #These are mostly self-explanatory, but 'node' is the new node
-        self.node = None                    #   made on an 'insert before' op. last_pos becomes None for
+        self.clicked_on = False             #These are mostly self-explanatory, but 'drag_node' is the new node
+        self.drag_node = None               #   made on an 'insert before' op. last_pos becomes None for
         self.last_pos = (None, None)        #   the new one, which prevents delete or double on_touch_up
+
         self._setup = partial(self.setup, x, y) 
         self.bind(parent=self._setup)   #call setup ONCE when this is first attached to a thingy.
 
@@ -57,10 +69,19 @@ class Node(Widget):
             if not self.being_dragged and pow(touch.pos[0]-self.last_pos[0],2)+pow(touch.pos[1]-self.last_pos[1],2) >= self.MIN_DRAG_DIST:
                 self.being_dragged = True
                 if self.parent.click_type:
-                    self.node = Node(*touch.pos)
-                    self.node.being_dragged = True
-                    self.node.clicked_on = True
-                    self.parent.add_widget(self.node)   #Note: use the linked list in the future
+                    self.drag_node = Node(*touch.pos)
+                    self.drag_node.being_dragged = True
+                    self.drag_node.clicked_on = True
+
+                    self.drag_node.next_node = self
+                    self.drag_node.prev_node = self.prev_node
+                    if self.prev_node is None:
+                        self.parent.head = self.drag_node
+                    else:
+                        self.prev_node.next_node = self.drag_node
+                    self.prev_node = self.drag_node
+
+                    self.parent.add_widget(self.drag_node)
             if self.being_dragged and (not self.parent.click_type or self.last_pos[0] is None):
                     self.conv_pos(touch.pos)
             return True
@@ -69,13 +90,21 @@ class Node(Widget):
         if self.clicked_on and self.last_pos[0] is not None:
             if not self.being_dragged:
                 if self.parent.click_type:
+                    if self.prev_node is None:
+                        self.parent.head = self.next_node
+                    else:
+                        self.prev_node.next_node = self.next_node
+                    if self.next_node is None:
+                        self.parent.tail = self.prev_node
+                    else:
+                        self.next_node.prev_node = self.prev_node
                     self.parent.remove_widget(self)
                 else:
                     print("select!")
-            if self.node is not None:
-                self.node.clicked_on = False
-                self.node.being_dragged = False
-                self.node = None
+            if self.drag_node is not None:
+                self.drag_node.clicked_on = False
+                self.drag_node.being_dragged = False
+                self.drag_node = None
             self.clicked_on = False
             self.being_dragged = False
             self.last_pos = (None, None)
@@ -87,15 +116,30 @@ class MyScreen(FloatLayout):
     def __init__(self):
         FloatLayout.__init__(self)
 
+        self.head = None#Node(0.2, 0.5)
+        self.tail = self.head
+
         self.click_type = False #What mode it's in -- select or create
         self.dont_check = False #I think normal buttons pass on on_touch_up even when they took the event, so this prevents that from being processed
+
         self.button = Button(text="Select", size_hint=(0.05,0.05));
         def callback(instance):
             self.click_type = not self.click_type
             self.button.text = "Create" if self.click_type else "Select"
             self.dont_check = True
+
+            if self.click_type:
+                self.print_list()
         self.button.bind(on_press=callback)
         self.add_widget(self.button)
+
+    def print_list(self):
+        x = self.head
+        print("  ")
+        while x is not None:
+            print(x.pers_id, "\t\t", x.pos_hint)
+            x = x.next_node
+
 
     def on_touch_down(self, touch):
         if not super(MyScreen, self).on_touch_down(touch):
@@ -105,7 +149,15 @@ class MyScreen(FloatLayout):
             if self.dont_check:
                 self.dont_check = False
             elif self.click_type:
-                self.add_widget(Node(*touch.pos))
+                if self.tail is None:
+                    self.tail = Node(*touch.pos)
+                    if self.head is None:
+                        self.head = self.tail
+                else:
+                    self.tail.next_node = Node(*touch.pos)  #sadly python has dumb chained assignments
+                    self.tail.next_node.prev_node = self.tail
+                    self.tail = self.tail.next_node
+                self.add_widget(self.tail)
             else:
                 print("deselect!")
 
