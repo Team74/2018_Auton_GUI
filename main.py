@@ -107,7 +107,6 @@ class Node(Widget):
                 if self.parent.click_type:
                     if self.prev_node is None:
                         self.parent.head = self.next_node
-                        self.next_node.canvas.add(self.next_node.head_sign)
                     else:
                         self.prev_node.next_node = self.next_node
                     if self.next_node is None:
@@ -116,6 +115,7 @@ class Node(Widget):
                         self.next_node.prev_node = self.prev_node
                         if self.prev_node is None:
                             self.next_node.canvas.remove(self.next_node.prev_line)
+                            self.next_node.canvas.add(self.next_node.head_sign)
                         else:
                             self.next_node.prev_line.points=[self.prev_node.pos[0]+self.prev_node.size[0]/2, self.prev_node.pos[1]+self.prev_node.size[1]/2, self.next_node.pos[0]+self.next_node.size[0]/2, self.next_node.pos[1]+self.next_node.size[1]/2]
                             #self.next_node.canvas.ask_update()
