@@ -22,23 +22,24 @@ class Node(Widget):
 
 #HEY NOTE: I'm sorry, but event bubbling's a pain, so just don't add children to this widget that need touch. It shouldn't have 'em anyways.
 #ALSO: Always follow a pattern of create -> adjust relevant prev_node/next_node and head/tail -> add_widget, which calls setup, which relies on these
+#And don't attach/remove/reattach to something. I haven't tried it but I bet things will break.
     
     def __init__(self, x, y):   #Pass in x,y of center of node, not corner like usual
         Widget.__init__(self)
-        self.MIN_DRAG_DIST = 100
+        self.MIN_DRAG_VAL = (20)**2   #squared so I don't need to take a root later
         self.SIZE = 0.05
         self.COLOR = Color(1,1,1)
 
-        self.prev_node = None;  #Linked List. Should be handled by the layout.
+        self.prev_node = None;  #Linked List of nodes
         self.next_node = None;
 
         self.being_dragged = False      # < Various variables for implementing the drag behavior
         self.clicked_on = False             #These are mostly self-explanatory, but 'drag_node' is the new node
         self.drag_node = None               #   made on an 'insert before' op. last_pos becomes None for
-        self.last_pos = (None, None)        #   the new one, which prevents delete or double on_touch_up
+        self.last_pos = (None, None)        #   the new one, which prevents deletion or doubled on_touch_up
 
         self._setup = partial(self.setup, x, y) 
-        self.bind(parent=self._setup)   #call setup ONCE when this is first attached to a thingy.
+        self.bind(parent=self._setup)   #used to call setup ONCE when this is first attached to a thingy.
 
     def setup(self, x, y, _self, _parent): #DON'T unattach and reattach to anything
         self.unbind(parent=self._setup)         #We don't want to call this on deleting it
@@ -78,18 +79,18 @@ class Node(Widget):
         return False
     def on_touch_move(self, touch):
         if self.clicked_on:
-            if not self.being_dragged and pow(touch.pos[0]-self.last_pos[0],2)+pow(touch.pos[1]-self.last_pos[1],2) >= self.MIN_DRAG_DIST:
+            if not self.being_dragged and pow(touch.pos[0]-self.last_pos[0],2)+pow(touch.pos[1]-self.last_pos[1],2) >= self.MIN_DRAG_VAL:
                 self.being_dragged = True
                 if self.parent.click_type:
                     self.drag_node = Node(*touch.pos)
-                    self.drag_node.being_dragged = True
                     self.drag_node.clicked_on = True
+                    self.drag_node.being_dragged = True
 
                     self.drag_node.next_node = self
                     self.drag_node.prev_node = self.prev_node
                     if self.prev_node is None:
                         self.parent.head = self.drag_node
-                        self.canvas.remove(self.head_sign)
+                        self.canvas.remove(self.head_sign)  #drag_node will add in its own constructor
                         self.canvas.add(self.prev_line)
                     else:
                         self.prev_node.next_node = self.drag_node
@@ -120,7 +121,6 @@ class Node(Widget):
                             self.next_node.canvas.add(self.next_node.head_sign)
                         else:
                             self.next_node.prev_line.points=[self.prev_node.pos[0]+self.prev_node.size[0]/2, self.prev_node.pos[1]+self.prev_node.size[1]/2, self.next_node.pos[0]+self.next_node.size[0]/2, self.next_node.pos[1]+self.next_node.size[1]/2]
-                            #self.next_node.canvas.ask_update()
                     self.parent.remove_widget(self)
                 else:
                     print("select!")
@@ -139,7 +139,7 @@ class SideButtons(DragBehavior, BoxLayout):
     def __init__(self):
         DragBehavior.__init__(self)
         BoxLayout.__init__(self, orientation='vertical', size_hint=(None, None), width=75)
-        self.bind(pos=self.dragin, size=self.dragin)
+        self.bind(pos=self.drag_set, size=self.drag_set)
 
         self.switch = Button(text="Select");
         def switch_callback(instance):
@@ -173,7 +173,7 @@ class SideButtons(DragBehavior, BoxLayout):
         self.importer.bind(on_press=importer_callback)
         self.add_widget(self.importer)
 
-    def dragin(self, _1, _2):
+    def drag_set(self, _1, _2):
         self.drag_rectangle = [self.x, self.y, self.width, self.height]
 
 
