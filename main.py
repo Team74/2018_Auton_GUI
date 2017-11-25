@@ -13,6 +13,8 @@ from kivy.uix.dropdown import DropDown
 from kivy.uix.button import Button
 from kivy.uix.behaviors import DragBehavior
 
+from kivy.uix.boxlayout import BoxLayout
+
 
 from functools import partial
 
@@ -133,6 +135,48 @@ class Node(Widget):
         return False
 
 
+class SideButtons(DragBehavior, BoxLayout):
+    def __init__(self):
+        DragBehavior.__init__(self)
+        BoxLayout.__init__(self, orientation='vertical', size_hint=(None, None), width=75)
+        self.bind(pos=self.dragin, size=self.dragin)
+
+        self.switch = Button(text="Select");
+        def switch_callback(instance):
+            self.parent.click_type = not self.parent.click_type
+            self.switch.text = "Create" if self.parent.click_type else "Select"
+            #self.parent.dont_check = True
+        self.switch.bind(on_press=switch_callback)
+        self.add_widget(self.switch)
+
+        self.herod = Button(text="Clear");
+        def clear_callback(instance):
+            #self.parent.dont_check = True
+            while self.parent.head is not None:
+                self.parent.remove_widget(self.parent.head)
+                self.parent.head = self.parent.head.next_node
+            self.parent.tail = None
+        self.herod.bind(on_press=clear_callback)
+        self.add_widget(self.herod)
+
+        self.encode = Button(text="Encode");
+        def encode_callback(instance):
+            #self.parent.dont_check = True
+            print("Add the encode stuff here! Maybe specify a file?")
+        self.encode.bind(on_press=encode_callback)
+        self.add_widget(self.encode)
+
+        self.importer = Button(text="Import");
+        def importer_callback(instance):
+            #self.parent.dont_check = True
+            print("Definitely add a menu to allow for entering a target file here, then fancy stuff to recreate the tree.")
+        self.importer.bind(on_press=importer_callback)
+        self.add_widget(self.importer)
+
+    def dragin(self, _1, _2):
+        self.drag_rectangle = [self.x, self.y, self.width, self.height]
+
+
 class MyScreen(FloatLayout):
     def __init__(self):
         FloatLayout.__init__(self)
@@ -143,20 +187,15 @@ class MyScreen(FloatLayout):
         self.click_type = False #What mode it's in -- select or create
         self.dont_check = False #I think normal buttons pass on on_touch_up even when they took the event, so this prevents that from being processed
 
-        self.button = Button(text="Select", size_hint=(0.05,0.05));
-        def callback(instance):
-            self.click_type = not self.click_type
-            self.button.text = "Create" if self.click_type else "Select"
-            self.dont_check = True
-        self.button.bind(on_press=callback)
-        self.add_widget(self.button)
+        self.buttons = SideButtons()
+        self.add_widget(self.buttons)
 
     def on_touch_down(self, touch):
         if not super(MyScreen, self).on_touch_down(touch):
             pass
     def on_touch_up(self, touch):
         if not super(MyScreen, self).on_touch_up(touch): 
-            if self.dont_check:
+            if self.dont_check: #Note: Draggable seems to make this less of an issue now
                 self.dont_check = False
             elif self.click_type:
                 if self.tail is None:
