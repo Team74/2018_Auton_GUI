@@ -51,14 +51,25 @@ class Node(Widget):
         self.unbind(parent=self._setup)         #We don't want to call this on deleting it
         self.size_hint = (self.SIZE, self.SIZE)
         self.conv_pos((x,y))    #set pos_hint
+
+        self.select_sign = InstructionGroup()
+        self.canvas.add(self.select_sign)
+        self.select_sign_i = InstructionGroup()
+        self.select_sign_i.add(Color(1,1,0))
+        self.select_sign_rect = Rectangle(pos=(self.pos[0]-self.size[0]/8, self.pos[1]-self.size[1]/8), size=(self.size[0]*10/8, self.size[1]*10/8))
+        self.select_sign_i.add(self.select_sign_rect)
+        self.select_sign_i.add(self.COLOR)
+
         self.canvas.add(self.COLOR)
         self.bg_rect = Rectangle(pos=self.pos, size=self.size)
         self.canvas.add(self.bg_rect)
+
         self.head_sign = InstructionGroup()
         self.head_sign.add(Color(0,0,1))
         self.head_sign_rect = Rectangle(pos=(self.pos[0]+self.size[0]/4, self.pos[1]+self.size[1]/4), size=(self.size[0]/2, self.size[1]/2))
         self.head_sign.add(self.head_sign_rect)
         self.head_sign.add(self.COLOR)
+
         self.prev_line = Line(width=1)
         if self.prev_node is None:
             self.canvas.add(self.head_sign)
@@ -76,6 +87,8 @@ class Node(Widget):
         self.bg_rect.size = self.size
         self.head_sign_rect.pos = (self.pos[0]+self.size[0]/4, self.pos[1]+self.size[1]/4)
         self.head_sign_rect.size = (self.size[0]/2, self.size[1]/2)
+        self.select_sign_rect.pos = (self.pos[0]-self.size[0]/8, self.pos[1]-self.size[1]/8)
+        self.select_sign_rect.size = (self.size[0]*10/8, self.size[1]*10/8)
 
     def on_touch_down(self, touch):
         if self.collide_point(*touch.pos):
@@ -136,8 +149,10 @@ class Node(Widget):
                     if self.parent.command_menu is not None:
                         self.parent.remove_widget(self.parent.command_menu)
                         self.parent.command_menu.store_list()
+                        self.parent.command_menu.node.select_sign.remove(self.parent.command_menu.node.select_sign_i)
                     self.parent.command_menu = CommandMenu(self)
                     self.parent.add_widget(self.parent.command_menu)
+                    self.select_sign.add(self.select_sign_i)
             if self.drag_node is not None:
                 self.drag_node.clicked_on = False
                 self.drag_node.being_dragged = False
@@ -282,7 +297,7 @@ class SetCommandButton(GridLayout):
         blah.content.bind(text=choose)
         blah.open()
     def add_up_callback(self, instance):
-        self.parent.add_widget(SetCommandButton(), index=self.parent.children.index(self))
+        self.parent.add_widget(SetCommandButton(), index=self.parent.children.index(self)+1)
     def add_down_callback(self, instance):
         self.parent.add_widget(SetCommandButton(), index=self.parent.children.index(self))
     def remove_callback(self, instance):
@@ -328,6 +343,7 @@ class MyScreen(FloatLayout):
                 self.add_widget(self.tail)
             else:
                 if self.command_menu is not None:
+                    self.command_menu.node.select_sign.remove(self.command_menu.node.select_sign_i)
                     self.remove_widget(self.command_menu)
                     self.command_menu.store_list()
                     self.command_menu = None
