@@ -213,6 +213,7 @@ class SideButtons(DragBehavior, BoxLayout):
                 f = open("save/" + blah.content.text, 'r')
                 node = None
                 for line in f:
+                    print(line[:6])
                     if line[:6] == "Node> ":
                         x = line[6:].split(", ")
                         node = Node(float(x[0].split(":")[1])*self.parent.width, float(x[1].split(":")[1])*self.parent.height)
@@ -230,6 +231,8 @@ class SideButtons(DragBehavior, BoxLayout):
                     else:
                         print("ERRORERRORERROREROROROEEROROROEOOREOROOROOROOROROEOOROEEEROORRROROROOEOROROEOE")
                 blah.dismiss()
+            blah.content.bind(on_text_validate=choose)
+            blah.open()
         self.importer.bind(on_press=importer_callback)
         self.add_widget(self.importer)
 
