@@ -12,6 +12,7 @@ from kivy.uix.behaviors import DragBehavior
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.scrollview import ScrollView
 from kivy.uix.gridlayout import GridLayout
+from kivy.uix.textinput import TextInput
 from kivy.uix.popup import Popup
 from kivy.uix.spinner import Spinner
 
@@ -193,14 +194,42 @@ class SideButtons(DragBehavior, BoxLayout):
         self.encode = Button(text="Encode");
         def encode_callback(instance):
             #self.parent.dont_check = True
-            print("Add the encode stuff here! Maybe specify a file?")
+            x = self.parent.head
+            while x is not None:
+                print("Node at: >", x.pos_hint)
+                for i in x.command_list:
+                    print("Command: >", i)
+                print("")
+                x = x.next_node
         self.encode.bind(on_press=encode_callback)
         self.add_widget(self.encode)
 
         self.importer = Button(text="Import");
         def importer_callback(instance):
             #self.parent.dont_check = True
-            print("Definitely add a menu to allow for entering a target file here, then fancy stuff to recreate the tree.")
+            blah = Popup(title="Choose Command", content=TextInput(text='', multiline=False), size_hint=(0.5,0.5))
+            def choose(thing):
+                clear_callback(None)
+                f = open("save/" + blah.content.text, 'r')
+                node = None
+                for line in f:
+                    if line[:6] == "Node> ":
+                        x = line[6:].split(", ")
+                        node = Node(float(x[0].split(":")[1])*self.parent.width, float(x[1].split(":")[1])*self.parent.height)
+                        if self.parent.tail is None:
+                            self.parent.tail = node
+                            if self.parent.head is None:
+                                self.parent.head = self.parent.tail
+                        else:
+                            self.parent.tail.next_node = node
+                            self.parent.tail.next_node.prev_node = self.parent.tail
+                            self.parent.tail = self.parent.tail.next_node
+                        self.parent.add_widget(self.parent.tail)
+                    elif line[:6] == "Comm> ":
+                        self.parent.tail.command_list.append(line[6:])
+                    else:
+                        print("ERRORERRORERROREROROROEEROROROEOOREOROOROOROOROROEOOROEEEROORRROROROOEOROROEOE")
+                blah.dismiss()
         self.importer.bind(on_press=importer_callback)
         self.add_widget(self.importer)
 
@@ -212,10 +241,21 @@ class CommandMenu(BoxLayout):
         BoxLayout.__init__(self, orientation='vertical', size_hint=(0.25,1), pos_hint={'x': 0.75 if node_.pos_hint['x'] <= 0.5 else 0, 'y': 0})
         self.node = node_
 
-        self.add_below = Button(text="dataquestionmark", size_hint=(1, None), height=0.36*self.height) 
-        def add_below_callback(instance):
-            self.parent.dont_check = True
-        self.add_below.bind(on_press=add_below_callback)
+        self.canvas.add(Color(0.745098, 0.745098, 0.745098))
+        self.bg_rect = Rectangle(pos=self.pos, size=self.size)
+        self.canvas.add(self.bg_rect)
+        self.canvas.add(Color(0,0,0))
+        def temp_labeller_redraw(a, b):
+            self.bg_rect.pos = self.pos
+            self.bg_rect.size = self.size
+        self.bind(pos=temp_labeller_redraw, size=temp_labeller_redraw)
+
+        self.add_below = Label(size_hint=(1, None), height=0.36*self.height, text = "Node\nX: %(x).3f\nY: %(y).3f" % self.node.pos_hint, font_size=20) 
+        def add_below_callback(thing, instance):
+            if self.add_below.collide_point(*instance.pos):
+               self.parent.dont_check = True
+            return super(Label, self.add_below).on_touch_down(instance)
+        self.add_below.bind(on_touch_down=add_below_callback)
         self.add_widget(self.add_below)
 
         self.scroller = ScrollView(size_hint=(1,1), do_scroll_y=True, do_scroll_x=False)
