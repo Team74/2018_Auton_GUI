@@ -280,7 +280,8 @@ class CommandMenu(BoxLayout):
             i.height = 0.2*self.height
 
     def store_list(self):
-        for i in self.grid.children:
+        self.node.command_list = []
+        for i in reversed(self.grid.children):
             if i.command != "" and i.command != "(Set Command)":
                 self.node.command_list.append(i.command)
 
@@ -312,7 +313,7 @@ class SetCommandButton(GridLayout):
         self.add_down = MiniButton(Button(text="Add Command Below"))
         self.add_down.widget.bind(on_press=self.add_down_callback)
 
-        self.command = ""
+        self.command = val
 
     def main_callback(self, instance):
         for i in self.parent.children:
@@ -341,6 +342,9 @@ class SetCommandButton(GridLayout):
     def remove_callback(self, instance):
         if len(self.parent.children) > 1:
             self.parent.remove_widget(self)
+        else:
+            self.main.text = self.command = "(Set Command)"
+            self.main_callback(None)
 
     def redraw(self, _1, _2):
         for i in self.children:
